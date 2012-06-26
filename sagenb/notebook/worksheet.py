@@ -160,7 +160,8 @@ class Worksheet(object):
     def __init__(self, name=None, id_number=None,
                  notebook_worksheet_directory=None, system=None,
                  owner=None, pretty_print=False,
-                 auto_publish=False, create_directories=True):
+                 auto_publish=False, create_directories=True,
+                 id_string=None):
         ur"""
         Create and initialize a new worksheet.
 
@@ -224,7 +225,16 @@ class Worksheet(object):
         # We also add the hash of the name, since the cleaned name loses info, e.g.,
         # it could be all _'s if all characters are funny.
         self.__id_number = int(id_number)
-        filename = os.path.join(owner, str(id_number))
+        
+        if id_string:
+            self.__id_string = id_string
+        else:
+            self.__id_string = str(id_number)
+
+        # filename defaults to <owner>/<id_number> if id_string = None;
+        # otherwise filename is <owner>/<id_string>
+        
+        filename = os.path.join(owner, id_string)
         self.__filename = filename
         self.__dir = os.path.join(notebook_worksheet_directory, str(id_number))
         if create_directories:
@@ -274,8 +284,31 @@ class Worksheet(object):
         try:
             return self.__id_number
         except AttributeError:
-            self.__id_number = int(os.path.split(self.__filename)[1])
-            return self.__id_number
+            try:
+                self.__id_number = int(os.path.split(self.__filename)[1])
+                return self.__id_number
+            except ValueError:
+                return -1 #XXX
+
+    def id_string(self):
+        """
+        Return the id string of this worksheet, which defaults to the string
+        representation of self.__id_number.
+
+        EXAMPLES::
+
+            sage: from sagenb.notebook.worksheet import Worksheet
+            sage: W = Worksheet('test', 2, tmp_dir(), owner='sageuser')
+            sage: W.id_string()
+            '2'
+            sage: type(W.id_string())
+            <type 'string'>
+        """
+        try:
+            return self.__id_string
+        except AttributeError:
+            self.__id_string = os.path.split(self.__filename)[1]
+            return self.__id_string
 
     def basic(self):
         """
@@ -310,6 +343,7 @@ class Worksheet(object):
              # basic identification
              'name': unicode(self.name()),
              'id_number': int(self.id_number()),
+             'id_string': self.id_string(),
 
              #############
              # default type of computation system that evaluates cells
@@ -398,12 +432,21 @@ class Worksheet(object):
                 self.set_name(value)
             elif key == 'id_number':
                 self.__id_number = value
-                if 'owner' in obj:
+                if 'owner' in obj and 'id_string' not in obj:
                     owner = obj['owner']
                     self.__owner = owner
                     filename = os.path.join(owner, str(value))
+                    self.__id_string = str(value)
                     self.__filename = filename
                     self.__dir = os.path.join(notebook_worksheet_directory, str(value))
+            elif key == 'id_string':
+                self.__id_string = value
+                if 'owner' in obj:
+                    owner = obj['owner']
+                    self.__owner = owner
+                    filename = os.path.join(owner, value)
+                    self.__filename = filename
+                    self.__dir = os.path.join(notebook_worksheet_directory, value)
             elif key in ['system', 'owner', 'viewers', 'collaborators',
                          'pretty_print', 'ratings']:
                 # ugly
@@ -724,14 +767,14 @@ class Worksheet(object):
         name = unicode_str(name)
         self.__name = name
 
-    def set_filename_without_owner(self, nm):
+    def set_filename_without_owner(self, id_string):
         r"""
         Set this worksheet filename (actually directory) by getting the
         owner from the pre-stored owner via ``self.owner()``.
 
         INPUT:
 
-        -  ``nm`` - string
+        -  ``id_string`` - string
 
         EXAMPLES::
 
@@ -743,7 +786,8 @@ class Worksheet(object):
             sage: W.filename()
             'admin/5'
         """
-        filename = os.path.join(self.owner(), nm)
+        self.id_string = str(id_string)
+        filename = os.path.join(self.owner(), id_string)
         self.set_filename(filename)
 
     def set_filename(self, filename):
