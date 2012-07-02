@@ -377,9 +377,9 @@ class FilesystemDatastore(Datastore):
         W.clear()
         return W
 
-    def load_worksheet(self, username, id_number):
+    def load_worksheet(self, username, id):
         """
-        Return worksheet with given id_number belonging to the given
+        Return worksheet with given id belonging to the given
         user.
 
         If the worksheet does not exist, return ValueError.
@@ -388,7 +388,7 @@ class FilesystemDatastore(Datastore):
 
             - ``username`` -- string
 
-            - ``id_number`` -- integer
+            - ``id`` -- int or string
 
         OUTPUT:
 
@@ -396,30 +396,34 @@ class FilesystemDatastore(Datastore):
         """
         # Prevent arbitrary directories from being created by
         # self.__worksheet_html_filename
-        dirname = self._worksheet_pathname(username, id_number)
+        dirname = self._worksheet_pathname(username, id)
         if not os.path.exists(dirname):
-            raise ValueError("Worksheet %s/%s does not exist"%(username, id_number))
+            raise ValueError("Worksheet %s/%s does not exist"%(username, id))
         
-        filename = self._worksheet_html_filename(username, id_number)
+        filename = self._worksheet_html_filename(username, id)
         html_file = self._abspath(filename)
         if not os.path.exists(html_file):
-            raise ValueError("Worksheet %s/%s does not exist"%(username, id_number))
+            raise ValueError("Worksheet %s/%s does not exist"%(username, id))
 
         try:
-            basic = self._load(self._worksheet_conf_filename(username, id_number))
+            basic = self._load(self._worksheet_conf_filename(username, id))
             basic['owner'] = username
-            basic['id_number'] = id_number
+            try:
+                basic['id_number'] = int(id)
+            except ValueError:
+                basic['id_number'] = -1 #TODO: give the worksheet an id_number
+            basic['id_string'] = str(id)
             W = self._basic_to_worksheet(basic)
             W._last_basic = basic   # cache
         except Exception:
             #the worksheet conf loading didn't work, so we make up one
             import traceback
-            print "Warning: problem loading config for %s/%s; using default config: %s"%(username, id_number, traceback.format_exc())
-            W = self._basic_to_worksheet({'owner':username, 'id_number': id_number})
+            print "Warning: problem loading config for %s/%s; using default config: %s"%(username, id, traceback.format_exc())
+            W = self._basic_to_worksheet({'owner':username, 'id': id})
             if username=='_sage_':
                 # save the default configuration, since this may be loaded by a random other user
                 # since *anyone* looking at docs will load all _sage_ worksheets
-                print "Saving default configuration (overwriting corrupt configuration) for %s/%s"%(username, id_number)
+                print "Saving default configuration (overwriting corrupt configuration) for %s/%s"%(username, id)
                 self.save_worksheet(W, conf_only=True)
         return W
 
@@ -442,8 +446,8 @@ class FilesystemDatastore(Datastore):
             basic['name'] = title
         basic['name'] = encoded_str(basic['name'])
         # Remove metainformation that perhaps shouldn't be distributed
-        for k in ['owner', 'ratings', 'worksheet_that_was_published', 'viewers', 'tags', 'published_id_number',
-                  'collaborators', 'auto_publish']:
+        for k in ['owner', 'ratings', 'worksheet_that_was_published', 'viewers',
+                'tags', 'published_id_number', 'collaborators', 'auto_publish']:
             if basic.has_key(k):
                 del basic[k]
                 

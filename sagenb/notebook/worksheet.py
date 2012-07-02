@@ -157,11 +157,10 @@ def Worksheet_from_basic(obj, notebook_worksheet_directory):
 
 
 class Worksheet(object):
-    def __init__(self, name=None, id_number=None,
+    def __init__(self, name=None, id_number=None, 
                  notebook_worksheet_directory=None, system=None,
                  owner=None, pretty_print=False,
-                 auto_publish=False, create_directories=True,
-                 id_string=None):
+                 auto_publish=False, create_directories=True, id_string=None):
         ur"""
         Create and initialize a new worksheet.
 
@@ -170,7 +169,7 @@ class Worksheet(object):
         -  ``name`` - string; the name of this worksheet
 
         - ``id_number`` - Integer; name of the directory in which the
-           worksheet's data is stored
+           worksheet's data is stored (unless id_string is set)
 
         -  ``notebook_worksheet_directory`` - string; the
            directory in which the notebook object that contains this worksheet
@@ -190,6 +189,9 @@ class Worksheet(object):
           creates various files and directories where data will be
           stored.  This option is here only for the
           migrate_old_notebook method in notebook.py
+
+        - ``id_string`` -- String; name of the directory in which the
+           worksheet's data is stored
 
         EXAMPLES: We test the constructor via an indirect doctest::
 
@@ -225,18 +227,13 @@ class Worksheet(object):
         # We also add the hash of the name, since the cleaned name loses info, e.g.,
         # it could be all _'s if all characters are funny.
         self.__id_number = int(id_number)
-        
-        if id_string:
+        if(id_string!=None):
             self.__id_string = id_string
         else:
             self.__id_string = str(id_number)
-
-        # filename defaults to <owner>/<id_number> if id_string = None;
-        # otherwise filename is <owner>/<id_string>
-        
-        filename = os.path.join(owner, id_string)
+        filename = os.path.join(owner, self.__id_string)
         self.__filename = filename
-        self.__dir = os.path.join(notebook_worksheet_directory, str(id_number))
+        self.__dir = os.path.join(notebook_worksheet_directory, self.__id_string)
         if create_directories:
             self.create_directories()
         self.clear()
@@ -284,31 +281,18 @@ class Worksheet(object):
         try:
             return self.__id_number
         except AttributeError:
-            try:
-                self.__id_number = int(os.path.split(self.__filename)[1])
-                return self.__id_number
-            except ValueError:
-                return -1 #XXX
+            self.__id_number = int(os.path.split(self.__filename)[-1])
+            return self.__id_number
 
     def id_string(self):
         """
-        Return the id string of this worksheet, which defaults to the string
-        representation of self.__id_number.
-
-        EXAMPLES::
-
-            sage: from sagenb.notebook.worksheet import Worksheet
-            sage: W = Worksheet('test', 2, tmp_dir(), owner='sageuser')
-            sage: W.id_string()
-            '2'
-            sage: type(W.id_string())
-            <type 'string'>
+        Return the final directory in the path where this worksheet is stored.
         """
         try:
             return self.__id_string
         except AttributeError:
-            self.__id_string = os.path.split(self.__filename)[1]
-            return self.__id_string
+            return os.path.split(self.__filename)[-1]
+
 
     def basic(self):
         """
@@ -322,7 +306,7 @@ class Worksheet(object):
             sage: import sagenb.notebook.worksheet
             sage: W = sagenb.notebook.worksheet.Worksheet('test', 0, tmp_dir(), owner='sage')
             sage: sorted((W.basic().items()))
-            [('auto_publish', False), ('collaborators', []), ('id_number', 0), ('last_change', ('sage', ...)), ('name', u'test'), ('owner', 'sage'), ('pretty_print', False), ('published_id_number', None), ('ratings', []), ('saved_by_info', {}), ('system', None), ('tags', {'sage': [1]}), ('viewers', []), ('worksheet_that_was_published', ('sage', 0))]
+            [('auto_publish', False), ('collaborators', []), ('id_number', 0), ('id_string', '0'), ('last_change', ('sage', ...)), ('name', u'test'), ('owner', 'sage'), ('pretty_print', False), ('published_id_number', None), ('ratings', []), ('saved_by_info', {}), ('system', None), ('tags', {'sage': [1]}), ('viewers', []), ('worksheet_that_was_published', ('sage', 0))]
         """
         try:
             published_id_number = int(os.path.split(self.__published_version)[1])
