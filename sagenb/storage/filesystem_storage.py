@@ -338,22 +338,23 @@ class FilesystemDatastore(Datastore):
             sage: DS = FilesystemDatastore(tmp)
             sage: DS.save_worksheet(W)
         """
-        username = worksheet.owner(); id_number = worksheet.id_number()
+        username = worksheet.owner()
+        id = worksheet.id()
         basic = self._worksheet_to_basic(worksheet)
         if not hasattr(worksheet, '_last_basic') or worksheet._last_basic != basic:
             # only save if changed
-            self._save(basic, self._worksheet_conf_filename(username, id_number))
+            self._save(basic, self._worksheet_conf_filename(username, id))
             worksheet._last_basic = basic
         if not conf_only and worksheet.body_is_loaded():
             # only save if loaded
             # todo -- add check if changed
-            filename = self._worksheet_html_filename(username, id_number)
+            filename = self._worksheet_html_filename(username, id)
             with open(self._abspath(filename),'w') as f:
                 f.write(worksheet.body().encode('utf-8', 'ignore'))
 
-    def create_worksheet(self, username, id_number):
+    def create_worksheet(self, username, id):
         """
-        Create worksheet with given id_number belonging to the given user.
+        Create worksheet with given id belonging to the given user.
 
         If the worksheet already exists, return ValueError.
 
@@ -361,21 +362,48 @@ class FilesystemDatastore(Datastore):
 
             - ``username`` -- string
 
-            - ``id_number`` -- integer
+            - ``id`` -- integer
 
         OUTPUT:
 
             - a worksheet
         """
-        filename = self._worksheet_html_filename(username, id_number)
+        filename = self._worksheet_html_filename(username, id)
         html_file = self._abspath(filename)
         if os.path.exists(html_file):
-            raise ValueError("Worksheet %s/%s already exists"%(username, id_number))
+            raise ValueError("Worksheet %s/%s already exists"%(username, id))
 
         # We create the worksheet
-        W = self._basic_to_worksheet({'owner':username, 'id_number':id_number})
+        basic = {'owner':username,
+            'id_string':str(id)}
+        try:
+            basic['id_number'] = int(id)
+        except ValueError:
+            basic['id_number'] = -1 #XXX
+        W = self._basic_to_worksheet(basic)
         W.clear()
         return W
+
+    def move_worksheet(self, username, old_id, new_id):
+        """
+        Move the worksheet at <username>/<old_id> to <username>/<new_id>
+
+        INPUT:
+            - ``username`` -- string
+            - ``id`` -- int or string
+        """
+        #TODO
+        W = self.load_worksheet(username, old_id)
+        newdirname = self._worksheet_pathname(username, id)
+
+        if os.path.exists(newdirname):
+            raise ValueError("There is already a worksheet at %s/%s"%(username,new_id))
+
+        
+        
+
+
+
 
     def load_worksheet(self, username, id):
         """
@@ -411,7 +439,7 @@ class FilesystemDatastore(Datastore):
             try:
                 basic['id_number'] = int(id)
             except ValueError:
-                basic['id_number'] = -1 #TODO: give the worksheet an id_number
+                basic['id_number'] = -1 #TODO: give the worksheet an id_number?
             basic['id_string'] = str(id)
             W = self._basic_to_worksheet(basic)
             W._last_basic = basic   # cache
@@ -491,6 +519,7 @@ class FilesystemDatastore(Datastore):
         # frequently *complain* about Sage exporting a record of their
         # mistakes anyways.
         T.close()
+
 
 
     def _import_old_worksheet(self, username, id_number, filename):
@@ -600,13 +629,13 @@ class FilesystemDatastore(Datastore):
         path = self._abspath(self._user_path(username))
         if not os.path.exists(path): return []
         v = []
-        for id_number in os.listdir(path):
-            if id_number.isdigit():
-                try:
-                    v.append(self.load_worksheet(username, int(id_number)))
-                except Exception:
-                    import traceback
-                    print "Warning: problem loading %s/%s: %s"%(username, id_number, traceback.format_exc())
+        for id in os.listdir(path):
+            try:
+                v.append(self.load_worksheet(username, id))
+            except Exception:
+                import traceback
+                print "Warning: problem loading %s/%s: %s"%(username, id,
+                            traceback.format_exc())
         return v
 
     def delete(self):

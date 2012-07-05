@@ -448,12 +448,13 @@ class Notebook(object):
             self.__scratch_worksheet = W
             return W
 
-    def create_new_worksheet(self, worksheet_name, username, add_to_list=True):
+    def create_new_worksheet(self, worksheet_name, username, add_to_list=True, id=None):
         if username!='pub' and self.user_manager().user_is_guest(username):
             raise ValueError("guests cannot create new worksheets")
-
-        W = self.worksheet(username)
-
+        if(id != None):
+            W = self.worksheet(username, id_string=str(id))
+        else:
+            W = self.worksheet(username)
         W.set_system(self.system(username))
         W.set_name(worksheet_name)
         self.save_worksheet(W)
@@ -733,26 +734,35 @@ class Notebook(object):
         id_number = W.id_number()
         S.export_worksheet(username, id_number, output_filename, title=title)
 
-    def worksheet(self, username, id_number=None):
+    def worksheet(self, username, id_number=None, id_string=None):
         """
-        Create a new worksheet with given id_number belonging to the
-        user with given username, or return an already existing
+        Create a new worksheet with given id_number or id_string belonging
+        to the user with given username, or return an already existing
         worksheet.  If id_number is None, creates a new worksheet
-        using the next available new id_number for the given user.
+        using the next available new id_number for the given user. 
+        If id_string is not None, the location of the worksheet will be
+        <username>/<id_string>, otherwise <username>/<id_number>.
 
         INPUT:
 
             - ``username`` -- string
 
             - ``id_number`` - nonnegative integer or None (default)
+
+            - ``id_string`` - string; overrides id_number for the location of
+                the worksheet in the filesystem
         """
         S = self.__storage
         if id_number is None:
             id_number = self.new_id_number(username)
+        if id_string is not None:
+            id = id_string
+        else:
+            id = id_number
         try:
-            W = S.load_worksheet(username, id_number)
+            W = S.load_worksheet(username, id)
         except ValueError:
-            W = S.create_worksheet(username, id_number)
+            W = S.create_worksheet(username, id)
         self.__worksheets[W.filename()] = W
         return W
 
@@ -760,11 +770,19 @@ class Notebook(object):
         """
         Find the next worksheet id for the given user.
         """
-        u = self.user(username).conf()
-        id_number = u['next_worksheet_id_number']
+        user_config = self.user(username).conf()
+        id_number = user_config['next_worksheet_id_number']
         if id_number == -1:  # need to initialize
-            id_number = max([w.id_number() for w in self.worksheet_list_for_user(username)] + [-1]) + 1
-        u['next_worksheet_id_number'] = id_number + 1
+            max_id_number = -1
+            for w in self.worksheet_list_for_user(username):
+                try:
+                    this_id_number = w.id_number()
+                    if max_id_number < this_id_number:
+                        max_id_number = this_id_number
+                except ValueError:
+                    continue
+            id_number = max_id_number + 1
+        user_config['next_worksheet_id_number'] = id_number + 1
         return id_number
 
     def new_worksheet_with_title_from_text(self, text, owner):

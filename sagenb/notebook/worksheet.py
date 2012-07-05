@@ -226,7 +226,6 @@ class Worksheet(object):
         # set the directory in which the worksheet files will be stored.
         # We also add the hash of the name, since the cleaned name loses info, e.g.,
         # it could be all _'s if all characters are funny.
-        self.__id_number = int(id_number)
         if(id_string!=None):
             self.__id_string = id_string
         else:
@@ -278,11 +277,7 @@ class Worksheet(object):
             sage: type(W.id_number())
             <type 'int'>
         """
-        try:
-            return self.__id_number
-        except AttributeError:
-            self.__id_number = int(os.path.split(self.__filename)[-1])
-            return self.__id_number
+        return int(self.id_string())
 
     def id_string(self):
         """
@@ -293,6 +288,8 @@ class Worksheet(object):
         except AttributeError:
             return os.path.split(self.__filename)[-1]
 
+    def id(self):
+        return self.id_string()
 
     def basic(self):
         """
@@ -306,7 +303,7 @@ class Worksheet(object):
             sage: import sagenb.notebook.worksheet
             sage: W = sagenb.notebook.worksheet.Worksheet('test', 0, tmp_dir(), owner='sage')
             sage: sorted((W.basic().items()))
-            [('auto_publish', False), ('collaborators', []), ('id_number', 0), ('id_string', '0'), ('last_change', ('sage', ...)), ('name', u'test'), ('owner', 'sage'), ('pretty_print', False), ('published_id_number', None), ('ratings', []), ('saved_by_info', {}), ('system', None), ('tags', {'sage': [1]}), ('viewers', []), ('worksheet_that_was_published', ('sage', 0))]
+            [('auto_publish', False), ('collaborators', []), ('id_number', 0), ('id_string', '0'), ('last_change', ('sage', ...)), ('name', u'test'), ('owner', 'sage'), ('pretty_print', False), ('published_id_number', None), ('ratings', []), ('saved_by_info', {}), ('system', None), ('tags', {'sage': [1]}), ('viewers', []), ('worksheet_that_was_published', ('sage', '0'))]
         """
         try:
             published_id_number = int(os.path.split(self.__published_version)[1])
@@ -316,17 +313,22 @@ class Worksheet(object):
         try:
             ws_pub = self.__worksheet_came_from
         except AttributeError:
-            ws_pub = (self.owner(), self.id_number())
+            ws_pub = (self.owner(), self.id())
 
         try:
             saved_by_info = self.__saved_by_info 
         except AttributeError:
             saved_by_info = {}
+        
+        try:
+            id_number = int(self.id_number())
+        except ValueError:
+            id_number = None
 
         d = {#############
              # basic identification
              'name': unicode(self.name()),
-             'id_number': int(self.id_number()),
+             'id_number': id_number,
              'id_string': self.id_string(),
 
              #############
@@ -346,7 +348,7 @@ class Worksheet(object):
              # it is None.
              'published_id_number': published_id_number,
              # If this is a published worksheet, then ws_pub
-             # is a 2-tuple ('username', id_number) of a non-published
+             # is a 2-tuple ('username', id) of a non-published
              # worksheet.  Otherwise ws_pub is None.
              'worksheet_that_was_published': ws_pub,
              # Whether or not this worksheet should automatically be
@@ -414,13 +416,12 @@ class Worksheet(object):
                 if repr(value) == '<_LazyString broken>':
                     value = ''
                 self.set_name(value)
-            elif key == 'id_number':
-                self.__id_number = value
-                if 'owner' in obj and 'id_string' not in obj:
+            elif key == 'id_number' and 'id_string' not in obj:
+                self.__id_string = str(value)
+                if 'owner' in obj: 
                     owner = obj['owner']
                     self.__owner = owner
                     filename = os.path.join(owner, str(value))
-                    self.__id_string = str(value)
                     self.__filename = filename
                     self.__dir = os.path.join(notebook_worksheet_directory, str(value))
             elif key == 'id_string':
@@ -492,7 +493,7 @@ class Worksheet(object):
             sage: W.__repr__()
             'admin/0: [Cell 0: in=2+3, out=\n5, Cell 10: in=2+8, out=\n10]'
         """
-        return '%s/%s: %s' % (self.owner(), self.id_number(), self.cell_list())
+        return '%s/%s: %s' % (self.owner(), self.id(), self.cell_list())
     def __len__(self):
         r"""
         Return the number of cells in this worksheet.
@@ -1231,12 +1232,11 @@ class Worksheet(object):
 
     def set_worksheet_that_was_published(self, W):
         """
-        Set the owner and id_number of the worksheet that was
-        published to get self.
+        Set the owner and id of the worksheet that was published to get self.
 
         INPUT:
 
-            - ``W`` -- worksheet or 2-tuple ('owner', id_number)
+            - ``W`` -- worksheet or 2-tuple ('owner', id)
 
         EXAMPLES::
 
@@ -1255,7 +1255,7 @@ class Worksheet(object):
         if isinstance(W, tuple):
             self.__worksheet_came_from = W
         else:
-            self.__worksheet_came_from = (W.owner(), W.id_number())
+            self.__worksheet_came_from = (W.owner(), W.id())
 
     def rate(self, x, comment, username):
         """
