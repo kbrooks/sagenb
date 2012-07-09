@@ -102,10 +102,7 @@ class WorksheetDict(dict):
             raise KeyError, item
 
         username, id = item.split('/')
-        try:
-            id=int(id)
-        except ValueError:
-            raise KeyError, item
+        
         try:
             worksheet = self.storage.load_worksheet(username, id)
         except ValueError:
@@ -459,7 +456,6 @@ class Notebook(object):
         W.set_name(worksheet_name)
         self.save_worksheet(W)
         self.__worksheets[W.filename()] = W
-
         return W
 
     def copy_worksheet(self, ws, owner):
@@ -1493,6 +1489,10 @@ class Notebook(object):
             return self.__worksheets[filename]
         except KeyError:
             raise KeyError, "No worksheet with filename '%s'"%filename
+
+    #XXX FOR TESTING
+    def worksheetDict(self):
+        return self.__worksheets
 
     ###########################################################
     # Saving the whole notebook
