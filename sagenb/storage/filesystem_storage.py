@@ -55,6 +55,13 @@ def is_safe(a):
     # / or \ on windows.  The code below assume \.
     return '..' not in a and not a.startswith('/')
 
+def is_valid_id(id):
+    """
+    Used to determine whether a given id is safe and valid when creating, copying,
+    or moving worksheets with a given id
+    """
+    id = str(id)
+    return '..' not in id and '/' not in id and '\\' not in id # and ' ' not in id 
 
 class FilesystemDatastore(Datastore):
     def __init__(self, path):
@@ -368,10 +375,13 @@ class FilesystemDatastore(Datastore):
 
             - a worksheet
         """
+        if not is_valid_id(id):
+            raise ValueError("The given id %s is invalid")%(id)
+
         filename = self._worksheet_html_filename(username, id)
         html_file = self._abspath(filename)
         if os.path.exists(html_file):
-            raise ValueError("Worksheet %s/%s already exists"%(username, id))
+            raise ValueError("There is already a worksheet at %s/%s"%(username, id))
 
         # We create the worksheet
         basic = {'owner':username,
@@ -384,21 +394,21 @@ class FilesystemDatastore(Datastore):
         W.clear()
         return W
 
-    def move_worksheet(self, username, old_id, new_id):
-        """
-        Move the worksheet at <username>/<old_id> to <username>/<new_id>
-
-        INPUT:
-            - ``username`` -- string
-            - ``id`` -- int or string
-        """
-        #TODO
-        W = self.load_worksheet(username, old_id)
-        newdirname = self._worksheet_pathname(username, id)
-
-        if os.path.exists(newdirname):
-            raise ValueError("There is already a worksheet at %s/%s"%(username,new_id))
-
+#    def move_worksheet(self, username, old_id, new_id):
+#        """
+#        Move the worksheet at <username>/<old_id> to <username>/<new_id>
+#
+#        INPUT:
+#            - ``username`` -- string
+#            - ``id`` -- int or string
+#        """
+#        #TODO
+#        W = self.load_worksheet(username, old_id)
+#        newdirname = self._worksheet_pathname(username, id)
+#
+#        if os.path.exists(newdirname):
+#            raise ValueError("There is already a worksheet at %s/%s"%(username,new_id))
+#
         
         
 
@@ -456,9 +466,9 @@ class FilesystemDatastore(Datastore):
         return W
 
 
-    def export_worksheet(self, username, id_number, filename, title):
+    def export_worksheet(self, username, id, filename, title):
         """
-        Export the worksheet with given username and id_number to the
+        Export the worksheet with given username and id to the
         given filename (e.g., 'worksheet.sws').
 
         INPUT:
@@ -467,7 +477,7 @@ class FilesystemDatastore(Datastore):
                None, just use current title)
         """
         T = tarfile.open(filename, 'w:bz2')
-        worksheet = self.load_worksheet(username, id_number)
+        worksheet = self.load_worksheet(username, id)
         basic = copy.deepcopy(self._worksheet_to_basic(worksheet))
         if title:
             # change the title
@@ -479,12 +489,12 @@ class FilesystemDatastore(Datastore):
             if basic.has_key(k):
                 del basic[k]
                 
-        self._save(basic, self._worksheet_conf_filename(username, id_number) + '2')
-        tmp = self._abspath(self._worksheet_conf_filename(username, id_number) + '2')
+        self._save(basic, self._worksheet_conf_filename(username, id) + '2')
+        tmp = self._abspath(self._worksheet_conf_filename(username, id) + '2')
         T.add(tmp, os.path.join('sage_worksheet','worksheet_conf.pickle'))
         os.unlink(tmp)
 
-        worksheet_html = self._abspath(self._worksheet_html_filename(username, id_number))
+        worksheet_html = self._abspath(self._worksheet_html_filename(username, id))
         T.add(worksheet_html, os.path.join('sage_worksheet','worksheet.html'))
 
         # The following is purely for backwards compatibility with old
@@ -503,7 +513,7 @@ class FilesystemDatastore(Datastore):
 
 
         # Add the contents of the DATA directory
-        path = self._abspath(self._worksheet_pathname(username, id_number))
+        path = self._abspath(self._worksheet_pathname(username, id))
         data = os.path.join(path, 'data')
         if os.path.exists(data):
             for X in os.listdir(data):

@@ -449,6 +449,8 @@ class Notebook(object):
         if username!='pub' and self.user_manager().user_is_guest(username):
             raise ValueError("guests cannot create new worksheets")
         if(id != None):
+            if "%s/%s"%(username,id) in self.__worksheets:
+                raise ValueError("worksheet with given id already exists")
             W = self.worksheet(username, id_string=str(id))
         else:
             W = self.worksheet(username)
@@ -1490,9 +1492,6 @@ class Notebook(object):
         except KeyError:
             raise KeyError, "No worksheet with filename '%s'"%filename
 
-    #XXX FOR TESTING
-    def worksheetDict(self):
-        return self.__worksheets
 
     ###########################################################
     # Saving the whole notebook
