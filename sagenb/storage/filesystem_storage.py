@@ -120,19 +120,19 @@ class FilesystemDatastore(Datastore):
 
         return path
     
-    def _worksheet_pathname(self, username, id_number):
-        return os.path.join(self._user_path(username), str(id_number))
+    def _worksheet_pathname(self, username, id):
+        return os.path.join(self._user_path(username), str(id))
     
-    def _worksheet_path(self, username, id_number=None):
-        if id_number is None:
+    def _worksheet_path(self, username, id=None):
+        if id is None:
             return self._makepath(self._user_path(username))
-        return self._makepath(self._worksheet_pathname(username, id_number))
+        return self._makepath(self._worksheet_pathname(username, id))
 
-    def _worksheet_conf_filename(self, username, id_number):
-        return os.path.join(self._worksheet_path(username, id_number), 'worksheet_conf.pickle')
+    def _worksheet_conf_filename(self, username, id):
+        return os.path.join(self._worksheet_path(username, id), 'worksheet_conf.pickle')
 
-    def _worksheet_html_filename(self, username, id_number):
-        return os.path.join(self._worksheet_path(username, id_number), 'worksheet.html')
+    def _worksheet_html_filename(self, username, id):
+        return os.path.join(self._worksheet_path(username, id), 'worksheet.html')
 
     def _history_filename(self, username):
         return os.path.join(self._user_path(username), 'history.pickle')
