@@ -22,10 +22,9 @@ def worksheet_view(f):
     def wrapper(username, id, **kwds):
         worksheet_filename = username + "/" + id
         try:
-            print g.notebook.worksheetDict(), "asdf", id
             worksheet = kwds['worksheet'] = g.notebook.get_worksheet_with_filename(worksheet_filename)
         except KeyError:
-            return current_app.message(_("The worksheet does not exist")) #changed for testing purposes XXX #"You do not have permission to access this worksheet"))
+            return current_app.message(_("You do not have permission to access this worksheet"))
         
         with worksheet_locks[worksheet]:
             owner = worksheet.owner()

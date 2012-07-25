@@ -168,7 +168,9 @@ class Notebook(object):
             self._user_manager.load(S)
         except IOError:
             pass
-
+    
+    def getfilesystem(self): #XXX FOR TESTING 
+        return self.__storage
     def delete(self):
         """
         Delete all files related to this notebook.

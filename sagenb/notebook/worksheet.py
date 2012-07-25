@@ -160,7 +160,8 @@ class Worksheet(object):
     def __init__(self, name=None, id_number=None, 
                  notebook_worksheet_directory=None, system=None,
                  owner=None, pretty_print=False,
-                 auto_publish=False, create_directories=True, id_string=None):
+                 auto_publish=False, create_directories=True, id_string=None,
+                 subpath=None):
         ur"""
         Create and initialize a new worksheet.
 
@@ -192,6 +193,9 @@ class Worksheet(object):
 
         - ``id_string`` -- String; name of the directory in which the
            worksheet's data is stored
+
+        - ``subpath`` -- String; additional directories between the username
+           and the id. The full path is <username>/<subpath>/<id>
 
         EXAMPLES: We test the constructor via an indirect doctest::
 
@@ -226,13 +230,18 @@ class Worksheet(object):
         # set the directory in which the worksheet files will be stored.
         # We also add the hash of the name, since the cleaned name loses info, e.g.,
         # it could be all _'s if all characters are funny.
+        self.__subpath = subpath
         if(id_string!=None):
             self.__id_string = id_string
         else:
             self.__id_string = str(id_number)
-        filename = os.path.join(owner, self.__id_string)
+        if subpath:
+            self.__dir = os.path.join(owner, subpath, self.__id_string)
+            filename = os.path.join(owner, subpath, self.__id_string)
+        else:
+            self.__dir = os.path.join(notebook_worksheet_directory, self.__id_string)
+            filename = os.path.join(owner, self.__id_string)
         self.__filename = filename
-        self.__dir = os.path.join(notebook_worksheet_directory, self.__id_string)
         if create_directories:
             self.create_directories()
         self.clear()
@@ -291,6 +300,15 @@ class Worksheet(object):
     def id(self):
         return self.id_string()
 
+    def subpath(self):
+        """
+        Return the intermediate directories in the path between 
+        """
+        try:
+            return self.__subpath
+        except AttributeError:
+            return None
+
     def basic(self):
         """
         Output a dictionary of basic Python objects that defines the
@@ -301,7 +319,7 @@ class Worksheet(object):
         EXAMPLES::
 
             sage: import sagenb.notebook.worksheet
-            sage: W = sagenb.notebook.worksheet.Worksheet('test', 0, tmp_dir(), owner='sage')
+            sage: W = sagenb.notebook.worksheet.Worksheet('test', 0, tmp_dir(), owner='sage', subpath='path')
             sage: sorted((W.basic().items()))
             [('auto_publish', False), ('collaborators', []), ('id_number', 0), ('id_string', '0'), ('last_change', ('sage', ...)), ('name', u'test'), ('owner', 'sage'), ('pretty_print', False), ('published_id_number', None), ('ratings', []), ('saved_by_info', {}), ('system', None), ('tags', {'sage': [1]}), ('viewers', []), ('worksheet_that_was_published', ('sage', '0'))]
         """
@@ -325,11 +343,13 @@ class Worksheet(object):
         except ValueError:
             id_number = None
 
+        
         d = {#############
              # basic identification
              'name': unicode(self.name()),
              'id_number': id_number,
              'id_string': self.id_string(),
+             'subpath': self.subpath(),
 
              #############
              # default type of computation system that evaluates cells
@@ -393,7 +413,7 @@ class Worksheet(object):
             - ``obj`` -- a dictionary of basic Python objects
 
             - ``notebook_worksheet_directory`` -- must be given if
-              ``id_number`` is a key of obj; otherwise not.
+              ``id_string`` is a key of obj; otherwise not.
 
         EXAMPLES::
 
@@ -407,6 +427,28 @@ class Worksheet(object):
             sage: W0.basic() == W.basic()
             True
         """
+
+        subpath = None
+        if 'id_number' and 'id_string' not in obj: 
+            return
+        if 'subpath' in obj:
+            subpath = obj['subpath']
+        if 'id_string' in obj:
+            id = obj['id_string']
+        elif 'id_number' in obj:
+            id = obj['id_number']
+        if 'owner' in obj:
+            owner = obj['owner']
+            self.__owner = owner
+            if subpath:
+                dir = os.path.join(notebook_worksheet_directory,subpath, id)
+                filename = os.path.join(owner, subpath, id)
+            else:
+                dir = os.path.join(notebook_worksheet_directory, id)
+                filename = os.path.join(owner, id)
+            self.__filename = filename
+            self.__dir = dir 
+            
         try: 
             del self.__cells
         except AttributeError: 
@@ -416,22 +458,6 @@ class Worksheet(object):
                 if repr(value) == '<_LazyString broken>':
                     value = ''
                 self.set_name(value)
-            elif key == 'id_number' and 'id_string' not in obj:
-                self.__id_string = str(value)
-                if 'owner' in obj: 
-                    owner = obj['owner']
-                    self.__owner = owner
-                    filename = os.path.join(owner, str(value))
-                    self.__filename = filename
-                    self.__dir = os.path.join(notebook_worksheet_directory, str(value))
-            elif key == 'id_string':
-                self.__id_string = value
-                if 'owner' in obj:
-                    owner = obj['owner']
-                    self.__owner = owner
-                    filename = os.path.join(owner, value)
-                    self.__filename = filename
-                    self.__dir = os.path.join(notebook_worksheet_directory, value)
             elif key in ['system', 'owner', 'viewers', 'collaborators',
                          'pretty_print', 'ratings']:
                 # ugly
@@ -446,8 +472,11 @@ class Worksheet(object):
                 self.set_published_version('pub/%s' % value)
             elif key == 'worksheet_that_was_published':
                 self.set_worksheet_that_was_published(value)
+
+
         self.create_directories()
 
+        
     def __cmp__(self, other):
         """
         We compare two worksheets.

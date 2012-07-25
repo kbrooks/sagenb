@@ -61,7 +61,17 @@ def is_valid_id(id):
     or moving worksheets with a given id
     """
     id = str(id)
-    return '..' not in id and '/' not in id and '\\' not in id # and ' ' not in id 
+    return '..' not in id and '/' not in id # and '\\' not in id # and ' ' not in id 
+
+
+def is_worksheet_directory(path):
+    """
+    Used to determine whether the specified path contains a worksheet.
+    """
+    try:
+        return 'worksheet_conf.pickle' in os.listdir(path) 
+    except OSError:
+        return False
 
 class FilesystemDatastore(Datastore):
     def __init__(self, path):
@@ -102,6 +112,7 @@ class FilesystemDatastore(Datastore):
         self._makepath(self._abspath(os.path.join(self._home_path, path)))
         return os.path.join(path, username)
 
+
     def _user_path(self, username):
         # There are weird cases, e.g., old notebook server migration
         # where username is None, and if we don't string it here,
@@ -111,35 +122,46 @@ class FilesystemDatastore(Datastore):
         username = str(username)
         path = self._abspath(os.path.join(self._home_path, username))
         if not os.path.islink(path):
-            if not os.path.exists(path):
-                self._makepath(path)
+           if not os.path.exists(path):
+            self._makepath(path)
 
-            old_dir = os.getcwd()
-            os.chdir(self._abspath(self._home_path))
-            new_path = self._deep_user_path(username)
+           old_dir = os.getcwd()
+           os.chdir(self._abspath(self._home_path))
+           new_path = self._deep_user_path(username)
 
-            #Move the directory to the __store__ directory
-            os.rename(path, new_path)
+           #Move the directory to the __store__ directory
+           os.rename(path, new_path)
 
-            #new_path now points to the actual directory
-            os.symlink(new_path, username)
-            os.chdir(old_dir)
-
+           #new_path now points to the actual directory
+           os.symlink(new_path, username)
+           os.chdir(old_dir)
         return path
-    
-    def _worksheet_pathname(self, username, id):
-        return os.path.join(self._user_path(username), str(id))
-    
-    def _worksheet_path(self, username, id=None):
-        if id is None:
-            return self._makepath(self._user_path(username))
-        return self._makepath(self._worksheet_pathname(username, id))
 
-    def _worksheet_conf_filename(self, username, id):
-        return os.path.join(self._worksheet_path(username, id), 'worksheet_conf.pickle')
 
-    def _worksheet_html_filename(self, username, id):
-        return os.path.join(self._worksheet_path(username, id), 'worksheet.html')
+
+    def _worksheet_pathname(self, username, id, subpath=None):
+        if subpath == None:
+            return os.path.join(self._user_path(username), str(id))
+        else:
+            return os.path.join(self._user_path(username), subpath, str(id))
+             
+    def _worksheet_path(self, username, id=None, subpath=None):
+        if subpath is None:
+            if id is None:
+                return self._makepath(self._user_path(username))
+            else:
+                return self._makepath(self._worksheet_pathname(username, id))
+        else:
+            if id is None:
+                return self._makepath(self._directory_path(username,subpath=subpath))
+            else:
+                return self._makepath(self._worksheet_pathname(username, id, subpath=subpath))
+
+    def _worksheet_conf_filename(self, username, id, subpath=None):
+        return os.path.join(self._worksheet_path(username, id, subpath=subpath), 'worksheet_conf.pickle')
+
+    def _worksheet_html_filename(self, username, id, subpath=None):
+        return os.path.join(self._worksheet_path(username, id, subpath=subpath), 'worksheet.html')
 
     def _history_filename(self, username):
         return os.path.join(self._user_path(username), 'history.pickle')
@@ -359,9 +381,9 @@ class FilesystemDatastore(Datastore):
             with open(self._abspath(filename),'w') as f:
                 f.write(worksheet.body().encode('utf-8', 'ignore'))
 
-    def create_worksheet(self, username, id):
+    def create_worksheet(self, username, id, subpath=None):
         """
-        Create worksheet with given id belonging to the given user.
+        Create worksheet with given id and subpath belonging to the given user.
 
         If the worksheet already exists, return ValueError.
 
@@ -369,7 +391,9 @@ class FilesystemDatastore(Datastore):
 
             - ``username`` -- string
 
-            - ``id`` -- integer
+            - ``id`` -- string
+
+            - ``subpath`` -- string
 
         OUTPUT:
 
@@ -377,11 +401,13 @@ class FilesystemDatastore(Datastore):
         """
         if not is_valid_id(id):
             raise ValueError("The given id %s is invalid")%(id)
-
-        filename = self._worksheet_html_filename(username, id)
+        if subpath:
+            if '..' in subpath:
+                raise ValueError("The given path %s is invalid")%(subpath)
+        filename = self._worksheet_html_filename(username, id, subpath=subpath)
         html_file = self._abspath(filename)
         if os.path.exists(html_file):
-            raise ValueError("There is already a worksheet at %s/%s"%(username, id))
+            raise ValueError("There is already a worksheet at %s"%(filename))
 
         # We create the worksheet
         basic = {'owner':username,
@@ -415,7 +441,7 @@ class FilesystemDatastore(Datastore):
 
 
 
-    def load_worksheet(self, username, id):
+    def load_worksheet(self, username, id, subpath=None):
         """
         Return worksheet with given id belonging to the given
         user.
@@ -428,23 +454,31 @@ class FilesystemDatastore(Datastore):
 
             - ``id`` -- int or string
 
+            - ``subpath`` -- string
+
         OUTPUT:
 
             - a worksheet
         """
         # Prevent arbitrary directories from being created by
         # self.__worksheet_html_filename
-        dirname = self._worksheet_pathname(username, id)
+        dirname = self._worksheet_pathname(username, id, subpath=subpath)
         if not os.path.exists(dirname):
-            raise ValueError("Worksheet %s/%s does not exist"%(username, id))
+            if subpath == None:
+                raise ValueError("Worksheet %s/%s does not exist"%(username, id))
+            else:
+                raise ValueError("Worksheet %s/%s/%s/ does not exist"%(username,subpath,id))
         
-        filename = self._worksheet_html_filename(username, id)
+        filename = self._worksheet_html_filename(username, id, subpath=subpath)
         html_file = self._abspath(filename)
         if not os.path.exists(html_file):
-            raise ValueError("Worksheet %s/%s does not exist"%(username, id))
-
+            if subpath == None:
+                raise ValueError("Worksheet %s/%s does not exist"%(username, id))
+            else:
+                raise ValueError("Worksheet %s/%s/%s/ does not exist"%(username,subpath,id))
+            
         try:
-            basic = self._load(self._worksheet_conf_filename(username, id))
+            basic = self._load(self._worksheet_conf_filename(username, id, subpath=subpath))
             basic['owner'] = username
             try:
                 basic['id_number'] = int(id)
@@ -457,7 +491,8 @@ class FilesystemDatastore(Datastore):
             #the worksheet conf loading didn't work, so we make up one
             import traceback
             print "Warning: problem loading config for %s/%s; using default config: %s"%(username, id, traceback.format_exc())
-            W = self._basic_to_worksheet({'owner':username, 'id': id})
+            W = self._basic_to_worksheet({'owner':username, 'subpath':subpath, 
+                'id_string': id})
             if username=='_sage_':
                 # save the default configuration, since this may be loaded by a random other user
                 # since *anyone* looking at docs will load all _sage_ worksheets
@@ -466,9 +501,9 @@ class FilesystemDatastore(Datastore):
         return W
 
 
-    def export_worksheet(self, username, id, filename, title):
+    def export_worksheet(self, username, id, filename, title, subpath = None):
         """
-        Export the worksheet with given username and id to the
+        Export the worksheet with given username, subpath, and id to the
         given filename (e.g., 'worksheet.sws').
 
         INPUT:
@@ -477,7 +512,7 @@ class FilesystemDatastore(Datastore):
                None, just use current title)
         """
         T = tarfile.open(filename, 'w:bz2')
-        worksheet = self.load_worksheet(username, id)
+        worksheet = self.load_worksheet(username, id, subpath=subpath)
         basic = copy.deepcopy(self._worksheet_to_basic(worksheet))
         if title:
             # change the title
@@ -489,12 +524,12 @@ class FilesystemDatastore(Datastore):
             if basic.has_key(k):
                 del basic[k]
                 
-        self._save(basic, self._worksheet_conf_filename(username, id) + '2')
-        tmp = self._abspath(self._worksheet_conf_filename(username, id) + '2')
+        self._save(basic, self._worksheet_conf_filename(username, id, subpath=subpath) + '2')
+        tmp = self._abspath(self._worksheet_conf_filename(username, id, subpath=subpath) + '2')
         T.add(tmp, os.path.join('sage_worksheet','worksheet_conf.pickle'))
         os.unlink(tmp)
 
-        worksheet_html = self._abspath(self._worksheet_html_filename(username, id))
+        worksheet_html = self._abspath(self._worksheet_html_filename(username, id, subpath=subpath))
         T.add(worksheet_html, os.path.join('sage_worksheet','worksheet.html'))
 
         # The following is purely for backwards compatibility with old
@@ -513,7 +548,7 @@ class FilesystemDatastore(Datastore):
 
 
         # Add the contents of the DATA directory
-        path = self._abspath(self._worksheet_pathname(username, id))
+        path = self._abspath(self._worksheet_pathname(username, id, subpath=subpath))
         data = os.path.join(path, 'data')
         if os.path.exists(data):
             for X in os.listdir(data):
@@ -532,7 +567,7 @@ class FilesystemDatastore(Datastore):
 
 
 
-    def _import_old_worksheet(self, username, id_number, filename):
+    def _import_old_worksheet(self, username, id_number, filename, subpath=None):
         """
         Import a worksheet from an old version of Sage. 
         """
@@ -574,25 +609,25 @@ class FilesystemDatastore(Datastore):
         return W
             
 
-    def import_worksheet(self, username, id_number, filename):
+    def import_worksheet(self, username, id, filename, subpath=None):
         """
-        Import the worksheet username/id_number from the file with
+        Import the worksheet username/subpath/id from the file with
         given filename.
         """
-        path = self._abspath(self._worksheet_pathname(username, id_number))
+        path = self._abspath(self._worksheet_pathname(username, id, subpath=subpath))
         if os.path.exists(path):
             shutil.rmtree(path, ignore_errors=True)
         os.makedirs(path)
         T = tarfile.open(filename, 'r:bz2')
         try:
-            with open(self._abspath(self._worksheet_conf_filename(username, id_number)),'w') as f:
+            with open(self._abspath(self._worksheet_conf_filename(username, id, subpath=subpath)),'w') as f:
                 f.write(T.extractfile(os.path.join('sage_worksheet','worksheet_conf.pickle')).read())
         except KeyError:
             # Not a valid worksheet.  This might mean it is an old
             # worksheet from a previous version of Sage.
-            return self._import_old_worksheet(username, id_number, filename)
+            return self._import_old_worksheet(username, id, filename)
 
-        with open(self._abspath(self._worksheet_html_filename(username, id_number)),'w') as f:
+        with open(self._abspath(self._worksheet_html_filename(username, id, subpath=subpath)),'w') as f:
             f.write(T.extractfile(os.path.join('sage_worksheet','worksheet.html')).read())
 
         base = os.path.join('sage_worksheet','data')
@@ -613,13 +648,13 @@ class FilesystemDatastore(Datastore):
         
         T.close()
         
-        return self.load_worksheet(username, id_number)
+        return self.load_worksheet(username, id, subpath=subpath)
         
-    def worksheets(self, username):
+    def worksheets(self, username, subpath=None):
         """
-        Return list of all the worksheets belonging to the user with
-        given name.  If the given user does not exists, an empty list
-        is returned.
+        Return list of all the worksheets, recursively from the directory 
+        specified by 'subpath,' belonging to the user with given name.  
+        If the given user does not exists, an empty list is returned.
 
         EXAMPLES: The load_user_data function must be defined in the
         derived class::
@@ -636,17 +671,28 @@ class FilesystemDatastore(Datastore):
             sage: DS.worksheets('sageuser')
             [sageuser/2: [Cell 0: in=, out=]]
         """
-        path = self._abspath(self._user_path(username))
-        if not os.path.exists(path): return []
-        v = []
-        for id in os.listdir(path):
+        if subpath:
+            basepath = self._abspath(os.path.join(self._user_path(username), subpath))
+        else:
+            basepath = self._abspath(self._user_path(username))
+        if not os.path.exists(basepath): return []
+        worksheet_list = []
+        for item in os.listdir(basepath):
             try:
-                v.append(self.load_worksheet(username, id))
+                if is_worksheet_directory(os.path.join(basepath,item)):
+                    worksheet_list.append(self.load_worksheet(username, item, subpath=subpath))
+                else:
+                    if subpath:
+                        newsubpath = os.path.join(subpath, item)
+                    else:
+                        newsubpath = item
+                    worksheet_list.extend(self.worksheets(username,subpath=newsubpath))
             except Exception:
                 import traceback
-                print "Warning: problem loading %s/%s: %s"%(username, id,
-                            traceback.format_exc())
-        return v
+                print "Warning: problem loading %s/%s: %s"%(username, item,
+                                traceback.format_exc())
+
+        return worksheet_list
 
     def delete(self):
         """
