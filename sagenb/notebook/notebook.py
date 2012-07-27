@@ -101,15 +101,20 @@ class WorksheetDict(dict):
         except TypeError:
             raise KeyError, item
 
-        username, id = item.split('/')
-        
+        path = item.split('/')
+        username = path[0]
+        id = path[-1]
+        if len(path)>2:
+            subpath = os.path.join(*path[1:-1])
+        else:
+            subpath = None
         try:
-            worksheet = self.storage.load_worksheet(username, id)
+            my_worksheet = self.storage.load_worksheet(username, id, subpath=subpath)
         except ValueError:
             raise KeyError, item
 
-        dict.__setitem__(self, item, worksheet)
-        return worksheet
+        dict.__setitem__(self, item, my_worksheet)
+        return my_worksheet
         
         
 class Notebook(object):
@@ -169,8 +174,6 @@ class Notebook(object):
         except IOError:
             pass
     
-    def getfilesystem(self): #XXX FOR TESTING 
-        return self.__storage
     def delete(self):
         """
         Delete all files related to this notebook.
@@ -447,15 +450,16 @@ class Notebook(object):
             self.__scratch_worksheet = W
             return W
 
-    def create_new_worksheet(self, worksheet_name, username, add_to_list=True, id=None):
+    def create_new_worksheet(self, worksheet_name, username, add_to_list=True,
+                                id=None, subpath=None):
         if username!='pub' and self.user_manager().user_is_guest(username):
             raise ValueError("guests cannot create new worksheets")
         if(id != None):
             if "%s/%s"%(username,id) in self.__worksheets:
                 raise ValueError("worksheet with given id already exists")
-            W = self.worksheet(username, id_string=str(id))
+            W = self.worksheet(username, id=str(id), subpath = subpath)
         else:
-            W = self.worksheet(username)
+            W = self.worksheet(username, subpath=subpath)
         W.set_system(self.system(username))
         W.set_name(worksheet_name)
         self.save_worksheet(W)
@@ -734,7 +738,7 @@ class Notebook(object):
         id_number = W.id_number()
         S.export_worksheet(username, id_number, output_filename, title=title)
 
-    def worksheet(self, username, id_number=None, id_string=None):
+    def worksheet(self, username, id=None, subpath=None):
         """
         Create a new worksheet with given id_number or id_string belonging
         to the user with given username, or return an already existing
@@ -747,22 +751,20 @@ class Notebook(object):
 
             - ``username`` -- string
 
-            - ``id_number`` - nonnegative integer or None (default)
 
-            - ``id_string`` - string; overrides id_number for the location of
-                the worksheet in the filesystem
+            - ``id`` - string; the bottom directory in which the worksheet 
+              data is stored
+
+            - ``subpath`` - string; the intermediate directories between the
+              username and the id.
         """
         S = self.__storage
-        if id_number is None:
-            id_number = self.new_id_number(username)
-        if id_string is not None:
-            id = id_string
-        else:
-            id = id_number
+        if id is None:
+            id = str(self.new_id_number(username))
         try:
-            W = S.load_worksheet(username, id)
+            W = S.load_worksheet(username, id, subpath=subpath)
         except ValueError:
-            W = S.create_worksheet(username, id)
+            W = S.create_worksheet(username, id, subpath=subpath)
         self.__worksheets[W.filename()] = W
         return W
 
