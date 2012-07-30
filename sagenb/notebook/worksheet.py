@@ -157,10 +157,10 @@ def Worksheet_from_basic(obj, notebook_worksheet_directory):
 
 
 class Worksheet(object):
-    def __init__(self, name=None, id_number=None, 
+    def __init__(self, name=None, id=None, 
                  notebook_worksheet_directory=None, system=None,
                  owner=None, pretty_print=False,
-                 auto_publish=False, create_directories=True, id_string=None,
+                 auto_publish=False, create_directories=True, 
                  subpath=None):
         ur"""
         Create and initialize a new worksheet.
@@ -231,16 +231,13 @@ class Worksheet(object):
         # We also add the hash of the name, since the cleaned name loses info, e.g.,
         # it could be all _'s if all characters are funny.
         self.__subpath = subpath
-        if(id_string!=None):
-            self.__id_string = id_string
-        else:
-            self.__id_string = str(id_number)
+        self.__id = str(id)
         if subpath:
-            self.__dir = os.path.join(owner, subpath, self.__id_string)
-            filename = os.path.join(owner, subpath, self.__id_string)
+            self.__dir = os.path.join(owner, subpath, self.__id)
+            filename = os.path.join(owner, subpath, self.__id)
         else:
-            self.__dir = os.path.join(notebook_worksheet_directory, self.__id_string)
-            filename = os.path.join(owner, self.__id_string)
+            self.__dir = os.path.join(notebook_worksheet_directory, self.__id)
+            filename = os.path.join(owner, self.__id)
         self.__filename = filename
         if create_directories:
             self.create_directories()
@@ -273,32 +270,39 @@ class Worksheet(object):
             set_restrictive_permissions(self.snapshot_directory())
             set_restrictive_permissions(self.cells_directory())
 
-    def id_number(self):
+#    def id_number(self):
+#        """
+#        Return the id number of this worksheet, which is an integer.
+#
+#        EXAMPLES::
+#
+#            sage: from sagenb.notebook.worksheet import Worksheet
+#            sage: W = Worksheet('test', 2, tmp_dir(), owner='sageuser')
+#            sage: W.id_number()
+#            2
+#            sage: type(W.id_number())
+#            <type 'int'>
+#        """
+#        return int(self.id_string())
+
+    def id(self):
         """
-        Return the id number of this worksheet, which is an integer.
+        Return the final directory in the path where this worksheet is stored.
 
         EXAMPLES::
 
             sage: from sagenb.notebook.worksheet import Worksheet
-            sage: W = Worksheet('test', 2, tmp_dir(), owner='sageuser')
-            sage: W.id_number()
-            2
-            sage: type(W.id_number())
-            <type 'int'>
-        """
-        return int(self.id_string())
-
-    def id_string(self):
-        """
-        Return the final directory in the path where this worksheet is stored.
+            sage: W = Worksheet('test', 'id', tmp_dir(), owner='sageuser')
+            sage: W.id()
+            'id'
+            sage: type(W.id())
+            <type 'str'>
         """
         try:
-            return self.__id_string
+            return self.__id
         except AttributeError:
             return os.path.split(self.__filename)[-1]
 
-    def id(self):
-        return self.id_string()
 
     def subpath(self):
         """
@@ -321,7 +325,7 @@ class Worksheet(object):
             sage: import sagenb.notebook.worksheet
             sage: W = sagenb.notebook.worksheet.Worksheet('test', 0, tmp_dir(), owner='sage', subpath='path')
             sage: sorted((W.basic().items()))
-            [('auto_publish', False), ('collaborators', []), ('id_number', 0), ('id_string', '0'), ('last_change', ('sage', ...)), ('name', u'test'), ('owner', 'sage'), ('pretty_print', False), ('published_id_number', None), ('ratings', []), ('saved_by_info', {}), ('system', None), ('tags', {'sage': [1]}), ('viewers', []), ('worksheet_that_was_published', ('sage', '0'))]
+            [('auto_publish', False), ('collaborators', []), ('id', '0'), ('last_change', ('sage', ...)), ('name', u'test'), ('owner', 'sage'), ('pretty_print', False), ('published_id_number', None), ('ratings', []), ('saved_by_info', {}), ('subpath', 'path'), ('system', None), ('tags', {'sage': [1]}), ('viewers', []), ('worksheet_that_was_published', ('sage', '0'))]
         """
         try:
             published_id_number = int(os.path.split(self.__published_version)[1])
@@ -338,17 +342,10 @@ class Worksheet(object):
         except AttributeError:
             saved_by_info = {}
         
-        try:
-            id_number = int(self.id_number())
-        except ValueError:
-            id_number = None
-
-        
         d = {#############
              # basic identification
              'name': unicode(self.name()),
-             'id_number': id_number,
-             'id_string': self.id_string(),
+             'id': self.id(),
              'subpath': self.subpath(),
 
              #############
@@ -429,14 +426,10 @@ class Worksheet(object):
         """
 
         subpath = None
-        if 'id_number' and 'id_string' not in obj: 
-            return
         if 'subpath' in obj:
             subpath = obj['subpath']
-        if 'id_string' in obj:
-            id = obj['id_string']
-        elif 'id_number' in obj:
-            id = obj['id_number']
+        if 'id' in obj:
+            id = obj['id']
         if 'owner' in obj:
             owner = obj['owner']
             self.__owner = owner
@@ -845,19 +838,31 @@ class Worksheet(object):
 
     def filename_without_owner(self):
         """
-        Return the part of the worksheet filename after the last /, i.e.,
-        without any information about the owner of this worksheet.
+        Return the part of the worksheet filename after the user's folder, i.e.,
+        without any information about the owner of this worksheet. 
 
         EXAMPLES::
 
             sage: nb = sagenb.notebook.notebook.Notebook(tmp_dir()+'.sagenb')
-            sage: W = nb.create_new_worksheet('A Test Worksheet', 'admin')
+            sage: W = nb.create_new_worksheet('A Test Worksheet', 'admin', id='id', subpath='subpath')
             sage: W.filename_without_owner()
-            '0'
+            'subpath/id'
             sage: W.filename()
-            'admin/0'
+            'admin/subpath/id'
         """
-        return os.path.split(self.__filename)[-1]
+        path = self.__filename
+        folders = []
+        while True:
+            path, folder = os.path.split(path)
+            if folder != "":
+                folders.append(folder)
+            else:
+                if path != "":
+                    folders.append(path)
+                break
+        folders.reverse()
+        folders_after_user = folders[1:]
+        return os.path.join(*folders_after_user)
 
     def directory(self):
         """
