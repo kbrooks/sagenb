@@ -403,19 +403,14 @@ class FilesystemDatastore(Datastore):
             raise ValueError("The given id %s is invalid")%(id)
         if subpath:
             if '..' in subpath:
-                raise ValueError("The given path %s is invalid")%(subpath)
+                raise ValueError("The given path %s is invalid"%(subpath))
         filename = self._worksheet_html_filename(username, id, subpath=subpath)
         html_file = self._abspath(filename)
         if os.path.exists(html_file):
             raise ValueError("There is already a worksheet at %s"%(filename))
 
         # We create the worksheet
-        basic = {'owner':username,
-            'id_string':str(id)}
-        try:
-            basic['id_number'] = int(id)
-        except ValueError:
-            basic['id_number'] = -1 #XXX
+        basic = {'owner':username, 'id':str(id), 'subpath':subpath}
         W = self._basic_to_worksheet(basic)
         W.clear()
         return W

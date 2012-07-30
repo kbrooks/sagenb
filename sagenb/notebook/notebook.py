@@ -158,15 +158,15 @@ class Notebook(object):
         self.__worksheets = W
 
         # Store / Refresh public worksheets
-        for id_number in os.listdir(self.__storage._abspath(self.__storage._user_path("pub"))):
-            if id_number.isdigit():
-                a = "pub/"+str(id_number)
+        for id in os.listdir(self.__storage._abspath(self.__storage._user_path("pub"))):
+            if id.isdigit():
+                a = "pub/"+str(id)
                 if a not in self.__worksheets:
                     try:
-                        self.__worksheets[a] = self.__storage.load_worksheet("pub",int(id_number))
+                        self.__worksheets[a] = self.__storage.load_worksheet("pub",int(id))
                     except Exception:
                         import traceback
-                        print "Warning: problem loading %s/%s: %s"%("pub", int(id_number), traceback.format_exc())
+                        print "Warning: problem loading %s/%s: %s"%("pub", int(id), traceback.format_exc())
 
         # Set the openid-user dict
         try:
@@ -344,18 +344,18 @@ class Notebook(object):
         path = self.__storage._abspath(self.__storage._user_path("pub"))
         v = []
         a = ""
-        for id_number in os.listdir(path):
-            if id_number.isdigit():
-                a = "pub"+"/"+id_number
+        for id in os.listdir(path):
+            if id.isdigit():
+                a = "pub"+"/"+id
                 if a in self.__worksheets:
                     v.append(self.__worksheets[a])
                 else:
                     try:
-                        self.__worksheets[a] = self.__storage.load_worksheet("pub", int(id_number))
+                        self.__worksheets[a] = self.__storage.load_worksheet("pub", int(id))
                         v.append(self.__worksheets[a])
                     except Exception:
                         import traceback
-                        print "Warning: problem loading %s/%s: %s"%("pub", id_number, traceback.format_exc())
+                        print "Warning: problem loading %s/%s: %s"%("pub", id, traceback.format_exc())
         return v
 
     def users_worksheets(self, username):
@@ -457,7 +457,7 @@ class Notebook(object):
         if(id != None):
             if "%s/%s"%(username,id) in self.__worksheets:
                 raise ValueError("worksheet with given id already exists")
-            W = self.worksheet(username, id=str(id), subpath = subpath)
+            W = self.worksheet(username, id=str(id), subpath=subpath)
         else:
             W = self.worksheet(username, subpath=subpath)
         W.set_system(self.system(username))
@@ -724,7 +724,7 @@ class Notebook(object):
 
         INPUT:
 
-            -  ``worksheet_filename`` - a string e.g., 'username/id_number'
+            -  ``worksheet_filename`` - a string e.g., 'username/id'
 
             -  ``output_filename`` - a string, e.g., 'worksheet.sws'
 
@@ -735,17 +735,15 @@ class Notebook(object):
         W = self.get_worksheet_with_filename(worksheet_filename)
         S.save_worksheet(W)
         username = W.owner()
-        id_number = W.id_number()
-        S.export_worksheet(username, id_number, output_filename, title=title)
+        id = W.id()
+        S.export_worksheet(username, id, output_filename, title=title)
 
     def worksheet(self, username, id=None, subpath=None):
         """
-        Create a new worksheet with given id_number or id_string belonging
+        Create a new worksheet with given id belonging
         to the user with given username, or return an already existing
-        worksheet.  If id_number is None, creates a new worksheet
-        using the next available new id_number for the given user. 
-        If id_string is not None, the location of the worksheet will be
-        <username>/<id_string>, otherwise <username>/<id_number>.
+        worksheet.  If id is None, creates a new worksheet
+        using the next available new id for the given user. 
 
         INPUT:
 
@@ -772,13 +770,14 @@ class Notebook(object):
         """
         Find the next worksheet id for the given user.
         """
+        # TODO: update code to support new id numbers 
         user_config = self.user(username).conf()
         id_number = user_config['next_worksheet_id_number']
         if id_number == -1:  # need to initialize
             max_id_number = -1
             for w in self.worksheet_list_for_user(username):
                 try:
-                    this_id_number = w.id_number()
+                    this_id_number = int(w.id())
                     if max_id_number < this_id_number:
                         max_id_number = this_id_number
                 except ValueError:
@@ -798,17 +797,19 @@ class Notebook(object):
         ws[new_key] = W
         del ws[old_key]
 
-    def import_worksheet(self, filename, owner):
+    def import_worksheet(self, filename, owner, subpath=None):
         r"""
         Import a worksheet with the given ``filename`` and set its
-        ``owner``.  If the file extension is not recognized, raise a
-        ValueError.
+        ``owner`` into the directory specified by ``subpath``.  If the file
+        extension is not recognized, raise a ValueError.
 
         INPUT:
 
         -  ``filename`` - a string
 
         -  ``owner`` - a string
+
+        - ``subpath`` - a string
 
         OUTPUT:
 
@@ -951,8 +952,8 @@ class Notebook(object):
             sage: sorted([w.filename() for w in nb.get_all_worksheets()])
             ['admin/0', 'admin/1']
         """
-        id_number = self.new_id_number(username)
-        worksheet = self.__storage.import_worksheet(username, id_number, filename)
+        id = self.new_id_number(username)
+        worksheet = self.__storage.import_worksheet(username, id, filename)
 
         # I'm not at all convinced this is a good idea, since we
         # support multiple worksheets with the same title very well
@@ -1755,11 +1756,11 @@ class Notebook(object):
                 try:
                     for w in self.users_worksheets(username):
                         owner = w.owner()
-                        id_number = w.id_number()
+                        id = w.id()
                         collaborators = w.collaborators()
                         for u in collaborators:
                             try:
-                                user_manager.user(u).viewable_worksheets().add((owner, id_number))
+                                user_manager.user(u).viewable_worksheets().add((owner, id))
                             except KeyError:
                                 # user doesn't exist
                                 pass
