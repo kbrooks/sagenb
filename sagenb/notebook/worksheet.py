@@ -169,8 +169,8 @@ class Worksheet(object):
 
         -  ``name`` - string; the name of this worksheet
 
-        - ``id_number`` - Integer; name of the directory in which the
-           worksheet's data is stored (unless id_string is set)
+        - ``id`` - string; name of the directory in which the
+           worksheet's data is stored 
 
         -  ``notebook_worksheet_directory`` - string; the
            directory in which the notebook object that contains this worksheet
@@ -270,20 +270,20 @@ class Worksheet(object):
             set_restrictive_permissions(self.snapshot_directory())
             set_restrictive_permissions(self.cells_directory())
 
-#    def id_number(self):
-#        """
-#        Return the id number of this worksheet, which is an integer.
-#
-#        EXAMPLES::
-#
-#            sage: from sagenb.notebook.worksheet import Worksheet
-#            sage: W = Worksheet('test', 2, tmp_dir(), owner='sageuser')
-#            sage: W.id_number()
-#            2
-#            sage: type(W.id_number())
-#            <type 'int'>
-#        """
-#        return int(self.id_string())
+    def id_number(self):
+        """
+        Return the id number of this worksheet, which is an integer.
+ 
+        EXAMPLES::
+ 
+            sage: from sagenb.notebook.worksheet import Worksheet
+            sage: W = Worksheet('test', 2, tmp_dir(), owner='sageuser')
+            sage: W.id_number()
+            2
+            sage: type(W.id_number())
+            <type 'int'>
+        """
+        return int(self.id())
 
     def id(self):
         """
@@ -430,6 +430,8 @@ class Worksheet(object):
             subpath = obj['subpath']
         if 'id' in obj:
             id = obj['id']
+        elif 'id_number' in obj:
+            id = str(obj['id_number'])
         if 'owner' in obj:
             owner = obj['owner']
             self.__owner = owner

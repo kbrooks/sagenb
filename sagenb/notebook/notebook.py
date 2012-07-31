@@ -770,14 +770,13 @@ class Notebook(object):
         """
         Find the next worksheet id for the given user.
         """
-        # TODO: update code to support new id numbers 
         user_config = self.user(username).conf()
         id_number = user_config['next_worksheet_id_number']
         if id_number == -1:  # need to initialize
             max_id_number = -1
             for w in self.worksheet_list_for_user(username):
                 try:
-                    this_id_number = int(w.id())
+                    this_id_number = w.id_number()#int(w.id())
                     if max_id_number < this_id_number:
                         max_id_number = this_id_number
                 except ValueError:

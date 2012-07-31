@@ -475,11 +475,7 @@ class FilesystemDatastore(Datastore):
         try:
             basic = self._load(self._worksheet_conf_filename(username, id, subpath=subpath))
             basic['owner'] = username
-            try:
-                basic['id_number'] = int(id)
-            except ValueError:
-                basic['id_number'] = -1 #TODO: give the worksheet an id_number?
-            basic['id_string'] = str(id)
+            basic['id'] = str(id)
             W = self._basic_to_worksheet(basic)
             W._last_basic = basic   # cache
         except Exception:
@@ -487,7 +483,7 @@ class FilesystemDatastore(Datastore):
             import traceback
             print "Warning: problem loading config for %s/%s; using default config: %s"%(username, id, traceback.format_exc())
             W = self._basic_to_worksheet({'owner':username, 'subpath':subpath, 
-                'id_string': id})
+                'id': id})
             if username=='_sage_':
                 # save the default configuration, since this may be loaded by a random other user
                 # since *anyone* looking at docs will load all _sage_ worksheets
