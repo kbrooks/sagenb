@@ -88,9 +88,9 @@ class Datastore(object):
         """
         raise NotImplementedError        
 
-    def create_worksheet(self, username, id_number):
+    def create_worksheet(self, username, id, subpath=None):
         """
-        Create worksheet with given id_number belonging to the given user.
+        Create worksheet with given id belonging to the given user.
 
         If the worksheet already exists, return ValueError.
 
@@ -98,7 +98,9 @@ class Datastore(object):
 
             - ``username`` -- string
 
-            - ``id_number`` -- integer
+            - ``id`` -- integer
+
+            - ``subpath`` -- string
 
         OUTPUT:
 
@@ -106,9 +108,9 @@ class Datastore(object):
         """
         raise NotImplementedError
 
-    def load_worksheet(self, username, id_number):
+    def load_worksheet(self, username, id, subpath = None):
         """
-        Return worksheet with given id_number belonging to the given
+        Return worksheet with given id belonging to the given
         user.
 
         If the worksheet does not exist, return ValueError.
@@ -117,7 +119,9 @@ class Datastore(object):
 
             - ``username`` -- string
 
-            - ``id_number`` -- integer
+            - ``id`` -- integer
+
+            - ``subpath`` -- string
 
         OUTPUT:
 
@@ -126,9 +130,9 @@ class Datastore(object):
         raise NotImplementedError        
 
 
-    def export_worksheet(self, username, id_number, filename, title):
+    def export_worksheet(self, username, id, filename, title, subpath = None):
         """
-        Export the worksheet with given username and id_number to the
+        Export the worksheet with given username and id to the
         given filename (e.g., 'worksheet.sws').
 
         INPUT:
@@ -138,18 +142,18 @@ class Datastore(object):
         """
         raise NotImplementedError        
 
-    def import_worksheet(self, username, id_number, filename):
+    def import_worksheet(self, username, id, filename, subpath = None):
         """
-        Input the worksheet username/id_number from the file with
+        Input the worksheet username/id from the file with
         given filename.
         """
         raise NotImplementedError        
         
-    def worksheets(self, username):
+    def worksheets(self, username, subpath = None):
         """
-        Return list of all the worksheets belonging to the user with
-        given name.  If the given user does not exists, an empty list
-        is returned.
+        Return list of all the worksheets, recursively from the directory 
+        specified by 'subpath,' belonging to the user with given name.  
+        If the given user does not exists, an empty list is returned.
 
         EXAMPLES: The load_user_data function must be defined in the
         derived class::
