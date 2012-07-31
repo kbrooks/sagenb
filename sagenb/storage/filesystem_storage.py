@@ -18,13 +18,23 @@ Sage notebook server::
          home/
              username0/
                 history.pickle
-                id_number0/
+                directory0/
+                    id0/
+                        worksheet.html
+                        worksheet_conf.pickle
+                        cells/
+                        data/
+                        snapshots/
+                    ...
+                directory1/
+                    ...
+                id0/
                     worksheet.html
                     worksheet_conf.pickle
                     cells/
                     data/
                     snapshots/
-                id_number1/
+                id1/
                     worksheet.html
                     worksheet_conf.pickle
                     cells/
