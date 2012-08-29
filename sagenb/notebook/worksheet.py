@@ -424,14 +424,15 @@ class Worksheet(object):
             sage: W0.basic() == W.basic()
             True
         """
-
-        subpath = None
         if 'subpath' in obj:
             subpath = obj['subpath']
+            self.__subpath = subpath
         if 'id' in obj:
             id = obj['id']
+            self.__id = id
         elif 'id_number' in obj:
             id = str(obj['id_number'])
+            self.__id = id
         if 'owner' in obj:
             owner = obj['owner']
             self.__owner = owner
@@ -517,7 +518,7 @@ class Worksheet(object):
             sage: W.__repr__()
             'admin/0: [Cell 0: in=2+3, out=\n5, Cell 10: in=2+8, out=\n10]'
         """
-        return '%s/%s: %s' % (self.owner(), self.id(), self.cell_list())
+        return '%s: %s' % (self.filename(), self.cell_list())
     def __len__(self):
         r"""
         Return the number of cells in this worksheet.

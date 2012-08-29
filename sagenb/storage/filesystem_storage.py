@@ -71,7 +71,7 @@ def is_valid_id(id):
     or moving worksheets with a given id
     """
     id = str(id)
-    return '..' not in id and '/' not in id # and '\\' not in id # and ' ' not in id 
+    return '..' not in id and '/' not in id and not id == '.'# and '\\' not in id # and ' ' not in id 
 
 
 def is_worksheet_directory(path):
@@ -82,6 +82,9 @@ def is_worksheet_directory(path):
         return 'worksheet_conf.pickle' in os.listdir(path) 
     except OSError:
         return False
+
+    
+
 
 class FilesystemDatastore(Datastore):
     def __init__(self, path):
@@ -248,10 +251,24 @@ class FilesystemDatastore(Datastore):
         """
         return worksheet.basic()
 
-    #########################################################################
+    
+    def _is_valid_subpath(self, username, subpath=None):
+        if subpath == None:
+            return True
+        if '..' in subpath:
+            return False
+        head = subpath
+        tail = ''
+        while head != '':
+            if is_worksheet_directory(head):
+                return False
+            head, tail = os.path.split(head)
+        return True
+   
+   #########################################################################
     # Now we implement the API we're supposed to implement
     #########################################################################
-    
+   
     def load_server_conf(self):
         return self._basic_to_server_conf(self._load('conf.pickle'))
     
@@ -410,9 +427,9 @@ class FilesystemDatastore(Datastore):
             - a worksheet
         """
         if not is_valid_id(id):
-            raise ValueError("The given id %s is invalid")%(id)
+            raise ValueError("The given id %s is invalid"%(id))
         if subpath:
-            if '..' in subpath:
+            if not self._is_valid_subpath(username,subpath):
                 raise ValueError("The given path %s is invalid"%(subpath))
         filename = self._worksheet_html_filename(username, id, subpath=subpath)
         html_file = self._abspath(filename)
@@ -486,6 +503,7 @@ class FilesystemDatastore(Datastore):
             basic = self._load(self._worksheet_conf_filename(username, id, subpath=subpath))
             basic['owner'] = username
             basic['id'] = str(id)
+            basic['subpath'] = subpath
             W = self._basic_to_worksheet(basic)
             W._last_basic = basic   # cache
         except Exception:
@@ -626,7 +644,7 @@ class FilesystemDatastore(Datastore):
         except KeyError:
             # Not a valid worksheet.  This might mean it is an old
             # worksheet from a previous version of Sage.
-            return self._import_old_worksheet(username, id, filename)
+            return self._import_old_worksheet(username, id, filename, subpath=subpath)
 
         with open(self._abspath(self._worksheet_html_filename(username, id, subpath=subpath)),'w') as f:
             f.write(T.extractfile(os.path.join('sage_worksheet','worksheet.html')).read())
@@ -650,6 +668,24 @@ class FilesystemDatastore(Datastore):
         T.close()
         
         return self.load_worksheet(username, id, subpath=subpath)
+
+    def import_worksheet_with_old_id(self, username, filename, subpath=None):
+        T = tarfile.open(filename, 'r:bz2')
+        from sagenb.misc.misc import tmp_filename
+        tempfile = tmp_filename()
+        try:
+            with open(tempfile,'w') as f:
+                f.write(T.extractfile(os.path.join('sage_worksheet','worksheet_conf.pickle')).read())
+            with open(tempfile) as f:
+                worksheet_conf = cPickle.load(f)
+            id = worksheet_conf['id']
+            T.close()
+            return self.import_worksheet(username, id, filename, subpath=subpath)
+        except KeyError:
+            # Not a valid worksheet.  This might mean it is an old
+            # worksheet from a previous version of Sage
+            raise ValueError('could not import worksheet sws')
+
         
     def worksheets(self, username, subpath=None):
         """
@@ -687,7 +723,8 @@ class FilesystemDatastore(Datastore):
                         newsubpath = os.path.join(subpath, item)
                     else:
                         newsubpath = item
-                    worksheet_list.extend(self.worksheets(username,subpath=newsubpath))
+                    if os.path.isdir(newsubpath):
+                        worksheet_list.extend(self.worksheets(username,subpath=newsubpath))
             except Exception:
                 import traceback
                 print "Warning: problem loading %s/%s: %s"%(username, item,
