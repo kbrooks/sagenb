@@ -166,7 +166,10 @@ class FilesystemDatastore(Datastore):
                 return self._makepath(self._worksheet_pathname(username, id))
         else:
             if id is None:
-                return self._makepath(self._directory_path(username,subpath=subpath))
+                if subpath:
+                    return self._makepath(os.path.join(self._user_path(username),subpath))
+                else:
+                    return self._makepath(self._user_path(username))
             else:
                 return self._makepath(self._worksheet_pathname(username, id, subpath=subpath))
 
@@ -396,15 +399,16 @@ class FilesystemDatastore(Datastore):
         """
         username = worksheet.owner()
         id = worksheet.id()
+        subpath = worksheet.subpath()
         basic = self._worksheet_to_basic(worksheet)
         if not hasattr(worksheet, '_last_basic') or worksheet._last_basic != basic:
             # only save if changed
-            self._save(basic, self._worksheet_conf_filename(username, id))
+            self._save(basic, self._worksheet_conf_filename(username, id, subpath=subpath))
             worksheet._last_basic = basic
         if not conf_only and worksheet.body_is_loaded():
             # only save if loaded
             # todo -- add check if changed
-            filename = self._worksheet_html_filename(username, id)
+            filename = self._worksheet_html_filename(username, id, subpath=subpath)
             with open(self._abspath(filename),'w') as f:
                 f.write(worksheet.body().encode('utf-8', 'ignore'))
 
@@ -723,7 +727,7 @@ class FilesystemDatastore(Datastore):
                         newsubpath = os.path.join(subpath, item)
                     else:
                         newsubpath = item
-                    if os.path.isdir(newsubpath):
+                    if os.path.isdir(os.path.join(basepath,item)):
                         worksheet_list.extend(self.worksheets(username,subpath=newsubpath))
             except Exception:
                 import traceback

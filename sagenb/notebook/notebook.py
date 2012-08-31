@@ -758,7 +758,8 @@ class Notebook(object):
         S.save_worksheet(W)
         username = W.owner()
         id = W.id()
-        S.export_worksheet(username, id, output_filename, title=title)
+        subpath = W.subpath()
+        S.export_worksheet(username, id, output_filename, title=title, subpath=subpath)
 
     def worksheet(self, username, id=None, subpath=None):
         """
