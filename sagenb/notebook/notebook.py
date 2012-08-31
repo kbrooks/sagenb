@@ -1037,7 +1037,7 @@ class Notebook(object):
             sage: W = nb1._import_worksheet_sws_with_old_id(sws, 'admin', subpath='subpath')
             sage: nb1._Notebook__worksheets[W.filename()] = W
             sage: sorted([w.filename() for w in nb1.get_all_worksheets()])
-            ['admin/subpath/worksheet','admin/worksheet']
+            ['admin/subpath/worksheet', 'admin/worksheet']
         """
         worksheet = self.__storage.import_worksheet_with_old_id(username, filename, subpath=subpath)
 
