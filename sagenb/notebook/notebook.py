@@ -1007,36 +1007,25 @@ class Notebook(object):
         We create a notebook, then make a worksheet from a plain text
         file first.::
 
-            sage: nb1 = sagenb.notebook.notebook.load_notebook(tmp_dir()+'one.sagenb')
+            sage: nb = sagenb.notebook.notebook.load_notebook(tmp_dir()+'one.sagenb')
             sage: name = tmp_filename() + '.txt'
             sage: open(name,'w').write('{{{id=0\n2+3\n}}}')
-            sage: W = nb1.import_worksheet(name, 'admin', id = 'worksheet')
+            sage: W = nb.import_worksheet(name, 'admin', id = 'worksheet')
             sage: W.filename()
             'admin/worksheet'
-            sage: sorted([w.filename() for w in nb1.get_all_worksheets()])
+            sage: sorted([w.filename() for w in nb.get_all_worksheets()])
             ['admin/worksheet']
 
         We then export the worksheet to an sws file.::
 
             sage: sws = os.path.join(tmp_dir(), 'tmp.sws')
-            sage: nb1.export_worksheet(W.filename(), sws)
+            sage: nb.export_worksheet(W.filename(), sws)
 
-        Now we create a new notebook and import the sws.::
-
-            sage: nb2 = sagenb.notebook.notebook.load_notebook(tmp_dir()+'two.sagenb')
-            sage: W = nb2._import_worksheet_sws_with_old_id(sws, 'admin')
-            sage: nb2._Notebook__worksheets[W.filename()] = W
-
-        Yes, it's there now (as a new worksheet)::
-
-            sage: sorted([w.filename() for w in nb2.get_all_worksheets()])
-            ['admin/worksheet']
-
-        We can import the worksheet into a new folder in the first notebook using the subpath variable::
+        We can import the worksheet into a new folder in the notebook using the subpath variable::
             
-            sage: W = nb1._import_worksheet_sws_with_old_id(sws, 'admin', subpath='subpath')
-            sage: nb1._Notebook__worksheets[W.filename()] = W
-            sage: sorted([w.filename() for w in nb1.get_all_worksheets()])
+            sage: W = nb._import_worksheet_sws_with_old_id(sws, 'admin', subpath='subpath')
+            sage: nb._Notebook__worksheets[W.filename()] = W
+            sage: sorted([w.filename() for w in nb.get_all_worksheets()])
             ['admin/subpath/worksheet', 'admin/worksheet']
         """
         worksheet = self.__storage.import_worksheet_with_old_id(username, filename, subpath=subpath)
