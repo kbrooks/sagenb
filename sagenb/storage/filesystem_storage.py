@@ -727,7 +727,7 @@ class FilesystemDatastore(Datastore):
                         newsubpath = os.path.join(subpath, item)
                     else:
                         newsubpath = item
-                    if os.path.isdir(os.path.join(basepath,item)):
+                    if os.path.isdir(os.path.join(basepath, item)):
                         worksheet_list.extend(self.worksheets(username,subpath=newsubpath))
             except Exception:
                 import traceback
