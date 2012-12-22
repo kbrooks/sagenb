@@ -1012,7 +1012,7 @@ class Notebook(object):
         We create a notebook, then make a worksheet from a plain text
         file first.::
 
-            sage: nb = sagenb.notebook.notebook.load_notebook(tmp_dir()+'one.sagenb')
+            sage: nb = sagenb.notebook.notebook.load_notebook(tmp_dir()+'.sagenb')
             sage: name = tmp_filename() + '.txt'
             sage: open(name,'w').write('{{{id=0\n2+3\n}}}')
             sage: W = nb.import_worksheet(name, 'admin', id = 'worksheet')

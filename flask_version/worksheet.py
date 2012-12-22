@@ -21,11 +21,12 @@ def worksheet_view(f):
     @login_required
     @wraps(f)
     def wrapper(username, id, **kwds):
+        print 'username = %s, id = %s'%(username,id)
         worksheet_filename = username + "/" + id
         try:
             worksheet = kwds['worksheet'] = g.notebook.get_worksheet_with_filename(worksheet_filename)
         except KeyError:
-            return current_app.message(_("You do not have permission to access this worksheet"))
+            return current_app.message(_("The worksheet %s does not exist"%(worksheet_filename)))#"You do not have permission to access this worksheet"))
         
         with worksheet_locks[worksheet]:
             owner = worksheet.owner()
@@ -79,7 +80,7 @@ def new_worksheet():
     W = g.notebook.create_new_worksheet(gettext("Untitled"), g.username)
     return redirect(url_for_worksheet(W))
 
-@ws.route('/home/<username>/<id>/')
+@ws.route('/home/<username>/<path:banana>')
 @worksheet_view
 def worksheet(username, id, worksheet=None):
     """
